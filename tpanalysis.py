@@ -97,13 +97,13 @@ class TPAnalysis(object):
 
             if assignments[i] == departing_state and i > departure_time:
                 groundassignments[departure_time:i] = True
-                departure_time = assignments.shape.shape[0]
+                departure_time = assignments.shape[0]
 
         groundassignments[assignments==departing_state] = True
 
         return tpassignments, groundassignments
 
-    def run(self, departing_state=0, arriving_state=0):
+    def run(self, departing_state=0, arriving_state=1):
         '''
         Run the transition path analysis to generate assignments for the 
         transition path ensemble.
@@ -183,6 +183,12 @@ if __name__ == "__main__":
                        .format(sim) for sim in sims]
 
     tpa = TPAnalysis(statelabelpaths, volumedatapaths) 
-    tpa.run()
+    tpa.run(departing_state=0, arriving_state=1)
+    tpa.compare_volume()
+
+    tpa.run(departing_state=1, arriving_state=0)
+    tpa.compare_volume()
+
+    tpa.run(departing_state=1, arriving_state=0)
     tpa.compare_volume()
         
