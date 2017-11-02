@@ -2,22 +2,16 @@
 import numpy
 
 class TPAnalysis(object):
-    def __init__(self, statelabelpaths, volumedatapaths):
+    def __init__(self, statelabelpaths):
         '''
         statelabelpaths: (list of str) A list of file paths to .npy files, each
             of which contains a column of integers indicating state labels. 
             For timepoints at which the system is in between states, the label
             should be "-1". Non-negative integers are treated as state labels.
-        volumedatapaths: (list of str) A list of file paths to .npy files, each
-            of which contains an n-by-1 numpy array, where the index runs over
-            the timepoint, and each element of the array is the volume of the
-            protein at the that timepoint.
         '''
         self.statelabelpaths = statelabelpaths
-        self.volumedatapaths = volumedatapaths
 
         self.load_state_labels()
-        self.load_volume_data()
 
 
     def load_state_labels(self):
@@ -30,17 +24,6 @@ class TPAnalysis(object):
         self.statelabels = []
         for statelabelpath in self.statelabelpaths:
             self.statelabels.append(numpy.load(statelabelpath))
-
-    def load_volume_data(self):
-        '''
-        Load the volume data from the .npy files specified in the attribute
-        ``self.volumedatapaths`` into the attribute ``self.volume``, a list
-        of numpy arrays, where the i^th index of each array indicates the state
-        label at the i^th time point.
-        '''
-        self.volume = []
-        for volumedatapath in self.volumedatapaths:
-            self.volume.append(numpy.load(volumedatapath))
 
     def assign_tp(self, assignments, departing_state=0, arriving_state=1):
         '''
@@ -133,6 +116,34 @@ class TPAnalysis(object):
                   "simulation {:d}: {:f}"\
                   .format(isim, self.groundassignments[isim].sum()))
 
+class VolumeTPAnalysis(TPAnalysis):
+    def __init__(self, statelabelpaths, volumedatapaths):
+        '''
+        statelabelpaths: (list of str) A list of file paths to .npy files, each
+            of which contains a column of integers indicating state labels. 
+            For timepoints at which the system is in between states, the label
+            should be "-1". Non-negative integers are treated as state labels.
+        volumedatapaths: (list of str) A list of file paths to .npy files, each
+            of which contains an n-by-1 numpy array, where the index runs over
+            the timepoint, and each element of the array is the volume of the
+            protein at the that timepoint.
+        '''
+        super(VolumeTPAnalysis, self).__init__(statelabelpaths)
+
+        self.volumedatapaths = volumedatapaths
+        self.load_volume_data()
+
+    def load_volume_data(self):
+        '''
+        Load the volume data from the .npy files specified in the attribute
+        ``self.volumedatapaths`` into the attribute ``self.volume``, a list
+        of numpy arrays, where the i^th index of each array indicates the state
+        label at the i^th time point.
+        '''
+        self.volume = []
+        for volumedatapath in self.volumedatapaths:
+            self.volume.append(numpy.load(volumedatapath))
+
     def compare_volume(self, saveprefix='default'):
         '''
         Calculate the average volume in the departing state and the transition
@@ -163,6 +174,9 @@ class TPAnalysis(object):
         print("Average volume in transition path ensemble is {:.02f}"\
               .format(tp_volume.mean()))
 
+
+    
+
 if __name__ == "__main__":
     sims = ['ff14sb.xray.1',
             'ff14sb.xray.2',
@@ -182,7 +196,7 @@ if __name__ == "__main__":
     volumedatapaths = ["/mnt/NAS2/VILLIN/brute_force_analysis/volume/{:s}/volume.npy"\
                        .format(sim) for sim in sims]
 
-    tpa = TPAnalysis(statelabelpaths, volumedatapaths) 
+    tpa = VolumeTPAnalysis(statelabelpaths, volumedatapaths) 
     tpa.run(departing_state=0, arriving_state=1)
     tpa.compare_volume()
 
