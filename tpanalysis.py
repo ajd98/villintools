@@ -79,7 +79,7 @@ class TPAnalysis(object):
                 departure_time = assignments.shape[0]
 
             if assignments[i] == departing_state and i > departure_time:
-                groundassignments[departure_time:i] = True
+                #groundassignments[departure_time:i] = True
                 departure_time = assignments.shape[0]
 
         groundassignments[assignments==departing_state] = True
@@ -198,11 +198,8 @@ if __name__ == "__main__":
 
     tpa = VolumeTPAnalysis(statelabelpaths, volumedatapaths) 
     tpa.run(departing_state=0, arriving_state=1)
-    tpa.compare_volume()
+    tpa.compare_volume(saveprefix='ff14sb.np-n')
 
     tpa.run(departing_state=1, arriving_state=0)
-    tpa.compare_volume()
+    tpa.compare_volume(saveprefix='ff14sb.n-np')
 
-    tpa.run(departing_state=1, arriving_state=0)
-    tpa.compare_volume()
-        
