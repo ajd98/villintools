@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import multiprocessing
+import os
+import subprocess
 import numpy
 
 global INPUTTEMPLATE = \
@@ -45,6 +47,9 @@ PMEMD="$(which pmemd.cuda) -O"
 ${PMEMD} -i INPUT -o MDOUT -c RESTART -p TOPOLOGY -r NEWRESTART
 '''
 
+global CPPTRAJSCRIPT = \
+
+
 
 class HP35Classifier(object):
     '''
@@ -55,8 +60,12 @@ class HP35Classifier(object):
     def __init__(self, coordpath, parmpath):
         self.coordpath = coordpath
         self.parmpath = parmpath
+        self.cpptrajbin = '/ihome/lchong/ajd98/apps/amber14/bin/cpptraj'
 
     def run(self):
+        cpptrajscript = 
+
+        
         return NotImplementedError
 
 class FrameJob(object):
@@ -190,7 +199,7 @@ class SegmentJob(object):
         self.segid = segid
         self.simdir = simdir
         self.parmpath = parmpath
-       sdf self.indicatorarr = indicatorarr
+        self.indicatorarr = indicatorarr
         self.analysisdir = analysisdir
         self.classifier = classifier
 
