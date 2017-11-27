@@ -5,7 +5,7 @@ import numpy
 import tempfile
 from classify_no_smoothing import StateClassifier
 
-global INPUTTEMPLATE = \
+INPUTTEMPLATE = \
 '''1 ns unrestrained NPT run using Langevin thermostat and MC barostat
 &cntrl
   irest     = 1,
@@ -37,7 +37,7 @@ global INPUTTEMPLATE = \
 &end
 '''
 
-global PMEMDSCRIPT = \
+PMEMDSCRIPT = \
 '''
 module purge
 module load intel/2017.1.132 mkl/2017.1.132 cuda/8.0.44 amber/16
@@ -48,7 +48,7 @@ PMEMD="$(which pmemd.cuda) -O"
 ${PMEMD} -i INPUT -o MDOUT -c RESTART -p TOPOLOGY -r NEWRESTART
 '''
 
-global CPPTRAJSCRIPT = \
+CPPTRAJSCRIPT = \
 '''
 parm PARMPATH
 trajin COORDPATH
@@ -587,8 +587,7 @@ class TransmissionCalculation(object):
         for iseg in xrange(1,10001):
             indicators = self.indicator[100*i:100*(i+1)]
 
-            analysisdir = 
-            classifier = 
+            classifier = HP35Classifier
 
             job = SegmentJob(iseg, self.simdir, self.parmpath, indicators,
                              self.analysisdir, classifier) 
