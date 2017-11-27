@@ -38,7 +38,13 @@ class MultipleAxes(object):
         for ax in self:
             ax.set_ylim(*lims)
 
-    def set_xlabel(self, xlabel, **kwargs):
+    def _inches_to_display(self, (xinches, yinches)):
+        fig = pyplot.gcf()
+        w = fig.get_figwidth()
+        h = fig.get_figheight()
+        return fig.transFigure.transform((xinches/w, yinches/h))
+
+    def set_xlabel(self, xlabel, labelpad=21, **kwargs):
         '''
         Set the ``master`` xlabel.
         '''
@@ -65,14 +71,26 @@ class MultipleAxes(object):
 
         # Now, get the y position for the xlabel. Do this in a hacky way...
         # In data units
-        y = self[lastrow, ncols//2].xaxis.label.get_position()[1]
-        _, y = self[lastrow, ncols//2].transAxes.inverted().transform((0,y))
+        #_, labelbuffer = self._inches_to_display((7./72,7./72))
+        #                                                     
+        #print(axis.xaxis.get_ticklabels()[0].get_position()[1])
+        #print(labelbuffer)
+        #y = axis.xaxis.get_ticklabels()[0].get_position()[1] - labelbuffer \
+        #    - self._inches_to_display((0,labelpad/72.))[1]
+        #_, y = axis.transAxes.inverted().transform((0,y))
 
-        axis.text(x, y, xlabel, ha='center', clip_on=False, 
+        #y = self[lastrow, ncols//2].xaxis.label.get_position()[1]
+        #_, y = self[lastrow, ncols//2].transAxes.inverted().transform((0,y))
+
+        y = axis.transAxes.transform((0,0))[1] - \
+                self._inches_to_display((0,labelpad/72.))[1]
+        _, y = axis.transAxes.inverted().transform((0,y))
+
+        axis.text(x, y, xlabel, ha='center', va='top', clip_on=False, 
                   transform=axis.transAxes,
                   **kwargs)
 
-    def set_ylabel(self, ylabel, **kwargs):
+    def set_ylabel(self, ylabel, labelpad=21, **kwargs):
         '''
         Set the ``master`` ylabel.
         '''
@@ -80,7 +98,7 @@ class MultipleAxes(object):
 
         # If there are an even number of rows, space the y label evenly
         # between the two middle rows.
-        nrows = self.shape[1]
+        nrows = self.shape[0]
         if nrows % 2 == 0:
             # y1, y2 are in axes units (for the axis just above the middle)
             x1 = 0
@@ -99,10 +117,13 @@ class MultipleAxes(object):
 
         # Now, get the x position for the ylabel. Do this in a hacky way...
         # In data units
-        x = self[nrows//2, firstcol].yaxis.label.get_position()[0]
-        x, _ = self[nrows//2, firstcol].transAxes.inverted().transform((x,0))
+        #x = self[nrows//2, firstcol].yaxis.label.get_position()[0]
+        #x, _ = self[nrows//2, firstcol].transAxes.inverted().transform((x,0))
+        x = axis.transAxes.transform((0,0))[0] - \
+                self._inches_to_display((labelpad/72.,0))[0]
+        x, _ = axis.transAxes.inverted().transform((x,0))
 
-        axis.text(x, y, xlabel, ha='center', clip_on=False, rotation=90, va='center',
+        axis.text(x, y, ylabel, ha='right', clip_on=False, rotation=90, va='center',
                   transform=axis.transAxes,
                   **kwargs)
 
