@@ -10,6 +10,10 @@ class RMSFAnalysis(object):
         '''
         self.statefiles = statefiles
 
+    def parse_statefiles(self):
+        self.load_states()
+        self.sims = [os.path.basename(statefile)[:-4] for statefile in self.statefiles]
+
     def load_states(self):
         self.states = [numpy.load(statefile) for statefile in self.statefiles]
 
@@ -39,7 +43,39 @@ class RMSFAnalysis(object):
         return os.path.join(simdir, fmtstr.format(iseg), 
                             "{:s}_solute.nc".format(fmtstr.format(iseg)))
 
+    def get_state_ranges(self, isim, state):
+        classifications = self.states[isim]
+        persistent_state = -1
+        ranges = []
+        for i, classification in enumerate(classifications):
+            if classification == state and persistent_state != state:
+                start = i
+            if classification != state and persistent_state == state:
+                end = i-1
+                ranges.append([start, end])
+        return ranges
+
+
+     
     def generate_script(self):
+        # Collect structures in each state
+        for state in range(5):
+            scriptlines = []
+
+            for isim, sim in enumerate(self.sims):
+                if isim == 0:
+                    parmpath = self.get_parmpath(sim)
+                    scriptlines.append("parm {:s}".format(parmpath))
+                # Ranges in which the simulation is in ``state``
+                #[[0,20], [22,70] .. ]
+                state_ranges = self.get_state_ranges(isim, state)
+                for rangestart, rangeend in state_ranges:
+                    
+                    # Get the cpptraj lines for loading the range, (rangestart, rangeend)
+                    
+
+
+        
         NSEGS=10000
         self.scriptlines = []
         self.scriptlines.append('parm {:s}\n'.format(self.parmpath))
