@@ -38,7 +38,7 @@ class RMSFAnalysis(object):
         return maindir
 
     def get_trajpath(self, simname, iseg):
-        simdir = self.get_simdir()
+        simdir = self.get_simdir(simname)
         fmtstr = "{:05d}"
         return os.path.join(simdir, fmtstr.format(iseg), 
                             "{:s}_solute.nc".format(fmtstr.format(iseg)))
@@ -58,6 +58,7 @@ class RMSFAnalysis(object):
 
      
     def generate_script(self):
+        FRAMES_PER_SEGMENT
         # Collect structures in each state
         for state in range(5):
             scriptlines = []
@@ -65,23 +66,67 @@ class RMSFAnalysis(object):
             for isim, sim in enumerate(self.sims):
                 if isim == 0:
                     parmpath = self.get_parmpath(sim)
-                    scriptlines.append("parm {:s}".format(parmpath))
+                    scriptlines.append("parm {:s}\n".format(parmpath))
                 # Ranges in which the simulation is in ``state``
                 #[[0,20], [22,70] .. ]
+                # state_ranges is zero-indexed
                 state_ranges = self.get_state_ranges(isim, state)
                 for rangestart, rangeend in state_ranges:
                     
                     # Get the cpptraj lines for loading the range, (rangestart, rangeend)
-                    
+                    # segmentstart, segmentend, segment, framestart, and frameend are one-indexed
+                    segmentstart = rangestart//FRAMES_PER_SEGMENT + 1
+                    segmentend = rangeend//FRAMES_PER_SEGMENT + 1
+                    for segment in range(segmentstart, segmentend+1):
+                        segmentpath = self.get_trajpath(sim, segment)
+                        framestart = rangestart - (segment-1)*FRAMES_PER_SEGMENT + 1
+                        frameend = rangeend - (segment-1)*FRAMES_PER_SEGMENT + 1
 
+                        framestart = max(1, framestart)
+                        frameend = min(FRAMES_PER_SEGMENT, frameend)
 
-        
-        NSEGS=10000
-        self.scriptlines = []
-        self.scriptlines.append('parm {:s}\n'.format(self.parmpath))
-        for iseg in range(1,NSEGS+1):
-            trajpath = self.get_trajpath(iseg)
-            self.scriptlines.append('trajin {:s}\n'.format(trajpath))
+                        scriptlines.append('trajin {:s} {:d} {:d}\n'.format(segmentpath,
+                                                                          framestart, 
+                                                                          frameend))
+            # Calculate the average structure, starting by rms-fitting on first frame
+            scriptlines.append('rms PHONY :!@Cl,Cl-,CL first\n')
+            # Get the actual average structure, saving it as average.pdb
+            scriptlines.append('average average.{:d}.pdb\n'.format(state))
+            scriptlines.append('average crdset AVERAGESTRUCTURE\n')
+            # Run to do the calculation
+            scriptlines.append('run\n')
+            # Now fit on the average structure
+            scriptlines.append('rms PHONY2 :!@Cl,Cl-,CL ref AVERAGESTRUCTURE\n')
+            # Finally calculate the rmsf
+            scriptlines.append('rmsf byres out rmsf.{:d}.dat\n'.format(state))
+            scriptlines.append('run\n')
+            with open("{:d}.cpptraj".format(state), 'w+') as f:
+                f.writelines(scriptlines)
 
-        self.scriptlines.append('rmsd JUNK :@C,CA,O,N first \n')
-        self.scriptlines.append('go\n')
+if __name__ == "__main__":
+    ff14sbstatefiles = ['/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.xray.1.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.xray.2.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.xray.3.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.nmr.1.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.nmr.2.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.nmr.3.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KLP21D.1.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KLP21D.2.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KLP21D.3.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KP21B.1.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KP21B.2.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KP21B.3.npy']
+
+    ff03wstatefiles = ['/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.xray.1.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.xray.2.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.xray.3.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.nmr.1.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.nmr.2.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.nmr.3.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KLP21D.1.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KLP21D.2.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KLP21D.3.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KP21B.1.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KP21B.2.npy',
+                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KP21B.3.npy']
+   RMSFAnalysis(ff14sbstatefiles)
