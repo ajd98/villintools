@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-import subprocess
+import numpy
 
 class RMSFAnalysis(object):
     def __init__(self, statefiles):
@@ -9,19 +9,27 @@ class RMSFAnalysis(object):
             simulation states.
         '''
         self.statefiles = statefiles
+        self.parse_statefiles()
+        self.generate_script()
 
     def parse_statefiles(self):
         self.load_states()
         self.sims = [os.path.basename(statefile)[:-4] for statefile in self.statefiles]
 
     def load_states(self):
-        self.states = [numpy.load(statefile) for statefile in self.statefiles]
+        self.states = []
+        for statefile in self.statefiles:
+            probs = numpy.load(statefile)
+            states = numpy.argmax(probs, axis=1)
+            mask = numpy.all(numpy.isnan(probs), axis=1)
+            states[mask] = -1
+            self.states.append(states)
 
     def get_parmpath(self, simname):
         '''
         Return path to topology file for simulation
         '''
-        simdir = self.get_simdir()
+        simdir = self.get_simdir(simname)
         return os.path.join(simdir, 'TOPOLOGY', 'solute.VILLIN.parm7')
             
     def get_simdir(self, simname):
@@ -53,12 +61,13 @@ class RMSFAnalysis(object):
             if classification != state and persistent_state == state:
                 end = i-1
                 ranges.append([start, end])
+            persistent_state = classification
         return ranges
 
 
      
     def generate_script(self):
-        FRAMES_PER_SEGMENT
+        FRAMES_PER_SEGMENT = 1
         # Collect structures in each state
         for state in range(5):
             scriptlines = []
@@ -71,6 +80,7 @@ class RMSFAnalysis(object):
                 #[[0,20], [22,70] .. ]
                 # state_ranges is zero-indexed
                 state_ranges = self.get_state_ranges(isim, state)
+                print(state_ranges)
                 for rangestart, rangeend in state_ranges:
                     
                     # Get the cpptraj lines for loading the range, (rangestart, rangeend)
@@ -85,18 +95,25 @@ class RMSFAnalysis(object):
                         framestart = max(1, framestart)
                         frameend = min(FRAMES_PER_SEGMENT, frameend)
 
-                        scriptlines.append('trajin {:s} {:d} {:d}\n'.format(segmentpath,
+                        ## for loading only every 1000th frame ##
+                        framestart = 1000*(framestart - 1)+1
+                        frameend = 1000*(frameend-1)+1
+                        #######################################
+
+                        #                       Also for loading every 1000th frame
+                        #                                         V
+                        scriptlines.append('trajin {:s} {:d} {:d} 1000\n'.format(segmentpath,
                                                                           framestart, 
                                                                           frameend))
             # Calculate the average structure, starting by rms-fitting on first frame
-            scriptlines.append('rms PHONY :!@Cl,Cl-,CL first\n')
+            scriptlines.append('rms PHONY !@Cl,Cl-,CL first\n')
             # Get the actual average structure, saving it as average.pdb
             scriptlines.append('average average.{:d}.pdb\n'.format(state))
             scriptlines.append('average crdset AVERAGESTRUCTURE\n')
             # Run to do the calculation
             scriptlines.append('run\n')
             # Now fit on the average structure
-            scriptlines.append('rms PHONY2 :!@Cl,Cl-,CL ref AVERAGESTRUCTURE\n')
+            scriptlines.append('rms PHONY2 !@Cl,Cl-,CL ref AVERAGESTRUCTURE\n')
             # Finally calculate the rmsf
             scriptlines.append('rmsf byres out rmsf.{:d}.dat\n'.format(state))
             scriptlines.append('run\n')
@@ -104,29 +121,29 @@ class RMSFAnalysis(object):
                 f.writelines(scriptlines)
 
 if __name__ == "__main__":
-    ff14sbstatefiles = ['/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.xray.1.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.xray.2.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.xray.3.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.nmr.1.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.nmr.2.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.nmr.3.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KLP21D.1.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KLP21D.2.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KLP21D.3.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KP21B.1.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KP21B.2.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff14sb.KP21B.3.npy']
+    ff14sbstatefiles = ['/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.xray.1.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.xray.2.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.xray.3.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.nmr.1.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.nmr.2.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.nmr.3.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.KLP21D.1.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.KLP21D.2.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.KLP21D.3.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.KP21B.1.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.KP21B.2.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff14sb.KP21B.3.npy']
 
-    ff03wstatefiles = ['/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.xray.1.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.xray.2.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.xray.3.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.nmr.1.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.nmr.2.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.nmr.3.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KLP21D.1.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KLP21D.2.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KLP21D.3.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KP21B.1.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KP21B.2.npy',
-                        '/home/ajd98/projects/villin/18.03.13/ntoruskdc/ff03w.KP21B.3.npy']
-   RMSFAnalysis(ff14sbstatefiles)
+    ff03wstatefiles = ['/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.xray.1.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.xray.2.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.xray.3.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.nmr.1.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.nmr.2.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.nmr.3.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.KLP21D.1.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.KLP21D.2.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.KLP21D.3.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.KP21B.1.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.KP21B.2.npy',
+                        '/home/ajd98/projects/villin/18.03.03/ntoruskdc/ff03w.KP21B.3.npy']
+    RMSFAnalysis(ff14sbstatefiles)
