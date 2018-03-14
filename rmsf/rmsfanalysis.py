@@ -106,14 +106,15 @@ class RMSFAnalysis(object):
                                                                           framestart, 
                                                                           frameend))
             # Calculate the average structure, starting by rms-fitting on first frame
-            scriptlines.append('rms PHONY !@Cl,Cl-,CL first\n')
+            #scriptlines.append('rms PHONY !@Cl,Cl-,CL first\n')
+            scriptlines.append('rms PHONY @N,CA,C,O&(!:35)|(@N,CA,C)&:35 first\n')
             # Get the actual average structure, saving it as average.pdb
             scriptlines.append('average average.{:d}.pdb\n'.format(state))
             scriptlines.append('average crdset AVERAGESTRUCTURE\n')
             # Run to do the calculation
             scriptlines.append('run\n')
             # Now fit on the average structure
-            scriptlines.append('rms PHONY2 !@Cl,Cl-,CL ref AVERAGESTRUCTURE\n')
+            scriptlines.append('rms PHONY2 @N,CA,C,O&(!:35)|(@N,CA,C)&:35 ref AVERAGESTRUCTURE\n')
             # Finally calculate the rmsf
             scriptlines.append('rmsf byres out rmsf.{:d}.dat\n'.format(state))
             scriptlines.append('run\n')
