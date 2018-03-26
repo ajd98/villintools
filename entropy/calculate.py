@@ -36,13 +36,15 @@ chimap = {1: (0,1),
           33: (),
           34: (70,71),
           35: (72,73)}
+          #14: (23,24,25,26,27),
 
 class EntropyCalculation(object):
     def __init__(self, statefiles, datafiles):
         self.statefiles = statefiles
         self.datafiles = datafiles
-        self.nbin_list = [10,15,20,24]
+        self.nbin_list = [10,15,20,24,36]
         self.states = (0,1,2,3,4)
+        self.calculate()
 
     def get_data(self, state, residue):
         '''
@@ -63,15 +65,20 @@ class EntropyCalculation(object):
         for isim in range(len(self.statefiles)):
             states = self.load_states(isim)
             data = self.load_data(isim)
-            alldata.append(data[(states==state)[:,numpy.newaxis]])
-        return numpy.concatenate(alldata)
+            print(data[states==state].shape)
+            alldata.append(data[states==state])
+        alldata = numpy.concatenate(alldata, axis=0)
+        print(alldata.shape)
+        return alldata[:,chimap[residue]]
 
     def load_data(self, isim):
-        return numpy.load(self.datafiles[isim])
+        print("      Loading {:s}".format(self.datafiles[isim]))
+        return numpy.load(self.datafiles[isim])[::1000]
 
     def load_states(self, isim):
         logp = numpy.load(self.statefiles[isim])
         p = numpy.exp(logp)
+        p /= p.sum(axis=1)[:,numpy.newaxis]
         states = numpy.argmax(p, axis=1)
         states[numpy.all(p<0.95, axis=1)] = -1
         return states
@@ -116,39 +123,41 @@ class EntropyCalculation(object):
         '''
         count = hist.sum()
         ravelled = numpy.require(hist.ravel(), dtype=float)/count
-        return numpy.multiply(ravelled,numpy.log(ravelled)).sum()
+        plnp = numpy.multiply(ravelled,numpy.log(ravelled))
+        return plnp[numpy.isfinite(plnp)].sum()
 
     def histogram(self, data, bins):
         return numpy.histogramdd(data, bins=bins, normed=False)[0]
 
     def calculate(self):
-        self.outputarr = numpy.zeros((len(self.states), len(chimap), len(self.nbin_list)))
+        self.output_arr = numpy.zeros((len(self.states), len(chimap), len(self.nbin_list)))
         for istate, state in enumerate(self.states):
             print("working on state {:d}".format(state))
             for iresidue, residue in enumerate(chimap.keys()):
-                print("  residue {:d}".format(residue))
-                data = self.get_data(state, residue)
-                for i, nbins in enumerate(self.nbin_list):
-                    print("    bin scheme {:d}".format(i))
-                    bins = self.get_bins(residue, nbins)
-                    hist = self.histogram(data, bins)
-                    entropy = self.calculate_entropy(hist)
-                    self.output_arr[istate, iresidue, i] = entropy
-        numpy.save('entropy', self.output_arr)
+                if len(chimap[residue]) > 0:
+                    print("  residue {:d}".format(residue))
+                    data = self.get_data(state, residue)
+                    for i, nbins in enumerate(self.nbin_list):
+                        print("    bin scheme {:d}".format(i))
+                        bins = self.get_bins(residue, nbins)
+                        hist = self.histogram(data, bins)
+                        entropy = self.calculate_entropy(hist)
+                        self.output_arr[istate, iresidue, i] = entropy
+                numpy.save('entropy', self.output_arr)
 
 def main():
-    ff14sbstatefiles = ['/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.xray.1.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.xray.2.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.xray.3.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.nmr.1.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.nmr.2.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.nmr.3.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.KLP21D.1.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.KLP21D.2.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.KLP21D.3.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.KP21B.1.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.KP21B.2.npy',
-                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc.smooth10ps/ff14sb.KP21B.3.npy']
+    ff14sbstatefiles = ['/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.xray.1.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.xray.2.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.xray.3.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.nmr.1.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.nmr.2.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.nmr.3.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.KLP21D.1.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.KLP21D.2.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.KLP21D.3.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.KP21B.1.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.KP21B.2.npy',
+                        '/gscratch3/lchong/ajd98/villin/dihedrals/ntoruskdc30/ff14sb.KP21B.3.npy']
 
     ff14sbdatafiles = ['/gscratch3/lchong/ajd98/villin/dihedrals/ff14sb.xray.1/chi.npy',
                        '/gscratch3/lchong/ajd98/villin/dihedrals/ff14sb.xray.2/chi.npy',
